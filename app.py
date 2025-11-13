@@ -1,22 +1,13 @@
 import streamlit as st
 
-# --- URLs DE ARTEFACTOS (VERIFICADAS POR EL USUARIO) ---
-# Estas URLs se utilizan como enlaces para simular la funcionalidad de los artefactos integrados.
-URL_MAP = {
-    "vision app": "https://visionapp-gw3qmdnaf3nhnqtvpagdjp.streamlit.app/",
-    "crtl voice": "https://ctrlvoice-lgppyaas3uqbshewc8ienf.streamlit.app/",
-    "hist inf": "https://histinf-2hkp6kecngkr3a7mpmjwjx.streamlit.app/",
-    "send cmqtt": "https://sendcmqtt-kdphuxjy7rjprdxquajky9.streamlit.app/",
-    "url_ia": "https://sites.google.com/view/aplicacionesdeia/inicio"
-}
-
-# --- CONFIGURACIÓN MQTT PARA WOKWI ---
+# --- CONFIGURACIÓN MQTT (Coherente con Wokwi) ---
+# Tópicos utilizados por el ESP32 en Wokwi
 TOPIC_ACCESO = "/vigilia/acceso"
 TOPIC_LUZ = "/vigilia/ambiente/luz"
 TOPIC_DEFENSA = "/vigilia/defensa"
-TOPIC_LOGS = "/vigilia/logs/estado" # Tópico de lectura de temperatura
+TOPIC_LOGS = "/vigilia/logs/estado" # Tópico de lectura de temperatura (Publicación del ESP32)
 
-# --- ESTÉTICA GÓTICA (CSS UNIFICADO) ---
+# --- ESTÉTICA GÓTICA UNIFICADA ---
 BASE_CSS = """
 <style>
 /* ---------------------------------------------------- */
@@ -42,12 +33,13 @@ h1 {
 }
 
 /* Subtítulos de Secciones */
-h2, h3 {
+h3 {
     color: #D3D3D3; /* Plata mate */
-    margin-top: 30px;
+    margin-top: 20px;
     border-left: 6px solid #4F4A5E; /* Acento de piedra oscura */
     padding-left: 15px;
-    font-size: 1.8em;
+    font-size: 1.5em;
+    min-height: 40px; 
 }
 
 /* Contenedores de Interfaz (Tarjetas de Obsidiana) */
@@ -58,13 +50,7 @@ h2, h3 {
     padding: 20px;
     margin-bottom: 25px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);  
-    transition: box-shadow 0.3s;
-    /* Responsive adjustment for columns */
-    min-height: 250px; 
-}
-
-.interface-card:hover {
-    box-shadow: 0 10px 20px rgba(156, 126, 79, 0.4); /* Brillo Arcano */
+    min-height: 350px; 
 }
 
 /* Botones de Comando */
@@ -74,9 +60,9 @@ h2, h3 {
     font-weight: bold;
     border: 2px solid #FF6666;
     border-radius: 8px;
-    padding: 10px 20px;
+    padding: 10px 15px;
     transition: background-color 0.3s, transform 0.2s;
-    width: 100%; /* Full width for better mobile interaction */
+    width: 100%;
     margin-top: 10px;
 }
 
@@ -86,168 +72,147 @@ h2, h3 {
     transform: translateY(-2px);
 }
 
-/* Enlaces (Runas de Conexión) */
-a {
-    color: #FF6666 !important;  
-    text-decoration: none;
+/* Panel de Comandos MQTT */
+.mqtt-log {
+    background-color: #383850; 
+    padding: 12px; 
+    border-radius: 8px; 
+    margin-top: 20px; 
+    border: 2px solid #9C7E4F;
+}
+.mqtt-log p {
+    margin: 4px 0;
+}
+.mqtt-log code {
+    color: #FF6666; 
     font-weight: bold;
-    transition: color 0.3s;
-}
-
-a:hover {
-    color: #FFAAAA !important;
-    text-shadow: 0 0 5px #FF6666;
-    text-decoration: underline;
-}
-
-/* Sidebar */
-.sidebar-title {
-    color: #B22222 !important;  
-    text-shadow: 1px 1px 5px #000000;
-    font-size: 1.8em !important;
-}
-
-/* Inputs de Texto/Voz */
-.stTextInput>div>div>input, .stTextArea>div>div>textarea {
     background-color: #2A2A3A;
-    color: #E0E0E0;
-    border: 1px solid #4F4A5E;
-    border-radius: 6px;
+    padding: 2px 5px;
+    border-radius: 3px;
 }
 </style>
 """
 st.markdown(BASE_CSS, unsafe_allow_html=True)
 
-# --- NAVEGACIÓN ---
-def set_page(page_name):
-    st.session_state.page = page_name
+# --- ESTRUCTURA DE COMANDO Y RESPUESTA ---
 
-if 'page' not in st.session_state:
-    st.session_state.page = "santuario"
+# Se usa st.session_state para almacenar la última acción y mostrarla en un panel unificado.
+if 'last_command' not in st.session_state:
+    st.session_state.last_command = {
+        "topic": "N/A", 
+        "payload": "N/A", 
+        "action": "Esperando Primer Comando"
+    }
 
-# --- SIDEBAR DE NAVEGACIÓN ---
-with st.sidebar:
-    st.markdown('<h3 class="sidebar-title">📜 NEXO DE LA VIGILIA</h3>', unsafe_allow_html=True)
-    st.write(
-        "El Origen de la Vigilia, donde se administran los portales multimodales hacia el mundo físico."
-    )
+def update_mqtt_command(topic, payload, action):
+    """Actualiza el estado para reflejar el comando MQTT que debe ser enviado."""
+    st.session_state.last_command = {
+        "topic": topic, 
+        "payload": payload, 
+        "action": action
+    }
+
+# --- DISEÑO UNIFICADO DE PÁGINA ---
+
+st.title("🛡️ NEXO DE LA VIGILIA: Estación de Mando Unificada")
+
+st.markdown("""
+El ESP32, guardián del Santuario, opera bajo estos comandos. 
+Esta interfaz genera el Tópico y el Payload exacto. Debe utilizar un cliente MQTT externo 
+(como el Artefacto **send cmqtt** o cualquier otro cliente MQTT) con el broker `broker.hivemq.com` 
+para enviar el comando que aparece en el **Panel de Acción Arcano**.
+""")
+st.markdown("---")
+
+
+# ------------------------------------------------
+# C1: ACCESO (Servo) | C2: ILUMINACIÓN (LED RGB)
+# C3: REGISTRO (Logs) | C4: DEFENSA (Buzzer)
+# ------------------------------------------------
+
+col1, col2, col3, col4 = st.columns(4)
+
+# --- COLUMNA 1: ACCESO (Servo Motor) ---
+with col1:
+    st.markdown('<div class="interface-card">', unsafe_allow_html=True)
+    st.markdown("<h3>1. Runa de Identidad (Acceso)</h3>", unsafe_allow_html=True)
+    st.write("Controla la cerradura electromecánica (`PIN_SERVO: 18`) enviando `1` (abrir) o `0` (cerrar).")
     st.markdown("---")
     
-    # Botones de navegación
-    if st.button("🚪 Santuario Interior (Acceso y Ambiente)"):
-        set_page("santuario")
-    
-    if st.button("👁️ Altar de la Inferencia (Monitoreo y Acción)"):
-        set_page("altar")
+    if st.button("ABRIR CERRADURA (180°)", key="open_lock"):
+        update_mqtt_command(TOPIC_ACCESO, "1", "ACCESO CONCEDIDO (Abrir Servo)")
 
-    st.markdown("---")
-    # Enlace a la página principal de Artefactos (el índice anterior)
-    st.write(f"Conexión a los pergaminos ancestrales: [Runa de Enlace]({URL_MAP['url_ia']})")
+    if st.button("CERRAR CERRADURA (0°)", key="close_lock"):
+        update_mqtt_command(TOPIC_ACCESO, "0", "ACCESO REVOCADO (Cerrar Servo)")
     
-# --- FUNCIÓN DE PUBLICACIÓN SIMULADA ---
-def show_mqtt_payload(topic, payload, action_name):
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# --- COLUMNA 2: ILUMINACIÓN (LED RGB) ---
+with col2:
+    st.markdown('<div class="interface-card">', unsafe_allow_html=True)
+    st.markdown("<h3>2. Comandos Arcanos (Luz)</h3>", unsafe_allow_html=True)
+    st.write("Ajusta las lámparas de ambiente (`Pines 21, 22, 23`).")
+    st.markdown("---")
+    
+    if st.button("MODO CALIDEZ (Naranja)", key="mode_calidez"):
+        update_mqtt_command(TOPIC_LUZ, "CALIDEZ", "ILUMINACIÓN: MODO CALIDEZ")
+
+    if st.button("MODO REPOSO (Azul Oscuro)", key="mode_reposo"):
+        update_mqtt_command(TOPIC_LUZ, "REPOSO", "ILUMINACIÓN: MODO REPOSO")
+        
+    if st.button("MODO POR DEFECTO (Blanco)", key="mode_default"):
+        update_mqtt_command(TOPIC_LUZ, "Por Defecto", "ILUMINACIÓN: MODO POR DEFECTO")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# --- COLUMNA 3: REGISTRO (Temperatura/Logs) ---
+with col3:
+    st.markdown('<div class="interface-card">', unsafe_allow_html=True)
+    st.markdown("<h3>3. Altar de la Inferencia (Logs)</h3>", unsafe_allow_html=True)
+    st.write("El ESP32 publica la temperatura (`PIN_TEMP: 36`) cada 10 segundos en este tópico de monitoreo.")
+    st.markdown("---")
     st.markdown(f"""
-        <div style="background-color: #383850; padding: 10px; border-radius: 6px; margin-top: 15px; border: 1px solid #9C7E4F;">
-            <p style="font-weight: bold; color: #D3D3D3;">{action_name}: Comando MQTT Publicado (Simulado)</p>
-            <p style="margin: 0;">Tópico: <code style="color: #FF6666;">{topic}</code></p>
-            <p style="margin: 0;">Payload: <code style="color: #9C7E4F;">{payload}</code></p>
+        <p style='color: #D3D3D3; font-weight: bold;'>
+            Tópico de Monitoreo:
+        </p>
+        <div style='background-color: #2A2A3A; padding: 10px; border-radius: 6px; border: 1px solid #4F4A5E;'>
+            <code style='color: #9C7E4F; font-size: 0.9em;'>{TOPIC_LOGS}</code>
         </div>
         """, unsafe_allow_html=True)
-    st.warning("Debe usar un cliente externo (como el Artefacto 'Control MQTT') para enviar este comando al broker.")
+    st.info("Para ver la temperatura (`T=XX.XXC`) en tiempo real, **suscríbase** al tópico anterior utilizando un cliente MQTT externo.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- PÁGINA 1: EL SANTUARIO INTERIOR (Acceso y Ambiente) ---
-def santuario_interior():
-    st.title("🚪 EL SANTUARIO INTERIOR: Cierre y Ambiente")
-    
+
+# --- COLUMNA 4: DEFENSA (Buzzer) ---
+with col4:
+    st.markdown('<div class="interface-card">', unsafe_allow_html=True)
+    st.markdown("<h3>4. El Lamento del Vacío (Alarma)</h3>", unsafe_allow_html=True)
+    st.write("Activa la sirena de defensa (`PIN_BUZZER: 19`) enviando `HIGH` o `LOW`.")
     st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown('<div class="interface-card">', unsafe_allow_html=True)
-        st.subheader("1. La Runa de Identidad (Acceso Visual)")
-        st.write("Modalidad: **Imagen/Visual**")
-        st.write("Simulación de un portal de reconocimiento de cazadores. La validación visual abriría la cerradura (`/vigilia/acceso`).")
-        
-        # Botones para simular el resultado de la validación visual
-        st.markdown("---")
-        st.markdown("**Control Manual del Acceso (Servo Lock)**")
-        
-        if st.button("ABRIR CERRADURA (Payload: 1)", key="open_lock"):
-            show_mqtt_payload(TOPIC_ACCESO, "1", "ACCESO CONCEDIDO (Abrir Servo)")
-
-        if st.button("CERRAR CERRADURA (Payload: 0)", key="close_lock"):
-            show_mqtt_payload(TOPIC_ACCESO, "0", "ACCESO REVOCADO (Cerrar Servo)")
-
-        st.markdown(f"**Artefacto de Decodificación Visual:** [Vision: Revelación]({URL_MAP['vision app']})")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-    with col2:
-        st.markdown('<div class="interface-card">', unsafe_allow_html=True)
-        st.subheader("2. Comandos Arcanos (Control Ambiental)")
-        st.write("Modalidad: **Control de Ambiente (LED RGB)**")
-        st.write("Ajusta las 'Fluid Lamps' mediante comandos directos, enviando el Payload al tópico `/vigilia/ambiente/luz`.")
-        
-        st.markdown("---")
-        st.markdown("**Configuración del Modo de Iluminación**")
-        
-        st.write("Seleccione el ambiente para el Santuario:")
-        
-        if st.button("MODO CALIDEZ (Payload: CALIDEZ)", key="mode_calidez"):
-            show_mqtt_payload(TOPIC_LUZ, "CALIDEZ", "ILUMINACIÓN: MODO CALIDEZ (Naranja)")
-
-        if st.button("MODO REPOSO (Payload: REPOSO)", key="mode_reposo"):
-            show_mqtt_payload(TOPIC_LUZ, "REPOSO", "ILUMINACIÓN: MODO REPOSO (Azul Oscuro)")
-            
-        if st.button("MODO POR DEFECTO (Payload: Por Defecto)", key="mode_default"):
-            show_mqtt_payload(TOPIC_LUZ, "Por Defecto", "ILUMINACIÓN: MODO POR DEFECTO (Blanco)")
-            
-        st.markdown(f"**Artefacto de Decodificación de Voz/Texto:** [Control Voz]({URL_MAP['crtl voice']})")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-# --- PÁGINA 2: EL ALTAR DE LA INFERENCIA (Monitoreo y Acción) ---
-def altar_inferencia():
-    st.title("👁️ EL ALTAR DE LA INFERENCIA: Monitoreo y Defensa")
     
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown('<div class="interface-card">', unsafe_allow_html=True)
-        st.subheader("3. El Historial de Logs (Temperatura)")
-        st.write("Modalidad: **Data/Historial de Logs**")
-        st.write(f"Monitorea el registro crítico de eventos y la temperatura del entorno físico, recibida en el tópico: <code style='color: #9C7E4F;'>{TOPIC_LOGS}</code>.")
-        st.write("El WOKWI publica datos de temperatura cada 10 segundos. Este panel **requeriría** un suscriptor MQTT continuo para mostrar los datos en tiempo real.")
+    if st.button("ACTIVAR LAMENTO (Alarma)", key="activate_alarm"):
+        update_mqtt_command(TOPIC_DEFENSA, "HIGH", "DEFENSA: ALARMA ACTIVADA")
         
-        if st.button("CONSULTAR REGISTRO CRÍTICO", key="view_hist"):
-            st.markdown(f"**Activando Artefacto:** [Hist. Inferencia]({URL_MAP['hist inf']})")
-            st.markdown('<p style="color: #FF6666;">*(Se abre el Artefacto en una nueva pestaña para el análisis de logs)*</p>', unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="interface-card">', unsafe_allow_html=True)
-        st.subheader("4. El Lamento del Vacío (Alarma/Defensa)")
-        st.write("Modalidad: **Controles/Alarma (Buzzer)**")
-        st.write("Activa la 'Sirena de Alarma' (Buzzer) del ESP32 enviando comandos de defensa al tópico `/vigilia/defensa`.")
+    if st.button("SILENCIAR LAMENTO (Desactivar)", key="deactivate_alarm"):
+        update_mqtt_command(TOPIC_DEFENSA, "LOW", "DEFENSA: ALARMA DESACTIVADA")
         
-        st.markdown("---")
-        st.markdown("**Control Manual de la Alarma**")
-        
-        if st.button("ACTIVAR LAMENTO (Payload: HIGH)", key="activate_alarm"):
-            show_mqtt_payload(TOPIC_DEFENSA, "HIGH", "DEFENSA: ALARMA ACTIVADA (HIGH)")
-            
-        if st.button("SILENCIAR LAMENTO (Payload: LOW)", key="deactivate_alarm"):
-            show_mqtt_payload(TOPIC_DEFENSA, "LOW", "DEFENSA: ALARMA DESACTIVADA (LOW)")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown(f"**Artefacto de Envío de Comandos:** [Control MQTT]({URL_MAP['send cmqtt']})")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-# --- EJECUCIÓN DEL CONTROLADOR DE PÁGINAS ---
-if st.session_state.page == "santuario":
-    santuario_interior()
-elif st.session_state.page == "altar":
-    altar_inferencia()
+st.markdown("---")
+
+# --- PANEL DE ACCIÓN ARCANA (Panel de Logs/Comandos Unificado) ---
+st.markdown('<h2 style="color: #FF6666; text-align: center; border-bottom: none;">PANEL DE ACCIÓN ARCANA (Comando a Publicar)</h2>', unsafe_allow_html=True)
+
+current_command = st.session_state.last_command
+
+st.markdown(f"""
+<div class="mqtt-log">
+    <p style="font-weight: bold; color: #E0E0E0;">Última Acción Seleccionada: <span style="color: #9C7E4F;">{current_command['action']}</span></p>
+    <p>Tópico de Publicación: <code>{current_command['topic']}</code></p>
+    <p>Payload a Enviar: <code>{current_command['payload']}</code></p>
+</div>
+""", unsafe_allow_html=True)
+
+st.warning("⚠️ **INSTRUCCIÓN VITAL:** Copie el Tópico y el Payload y péguelos en su cliente MQTT externo para que el ESP32 en Wokwi ejecute la acción. El broker es **broker.hivemq.com** (Puerto 1883).")
